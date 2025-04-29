@@ -1,0 +1,1 @@
+# Code-deploy to EC2 instance and secret manager with Node JS

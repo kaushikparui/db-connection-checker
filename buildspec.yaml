@@ -1,0 +1,35 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: "us-west-1"
+    APP_NAME: "node"
+    ECR_REPO: "725873549359.dkr.ecr.us-west-1.amazonaws.com/node"
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging into Amazon ECR...
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - echo $IMAGE_TAG > image_tag.txt
+
+  build:
+    commands:
+      - echo Building the Docker image...
+      - docker build -t $APP_NAME:$IMAGE_TAG .
+      - docker tag $APP_NAME:$IMAGE_TAG $ECR_REPO:$IMAGE_TAG
+
+  post_build:
+    commands:
+      - echo Pushing Docker image to ECR...
+      - docker push $ECR_REPO:$IMAGE_TAG
+      - echo Creating imagedefinitions.json
+      - printf '[{"name":"$APP_NAME","imageUri":"%s"}]' "$ECR_REPO:$IMAGE_TAG" > imagedefinitions.json
+
+artifacts:
+  files:
+    - image_tag.txt
+    - appspec.yml
+    - imagedefinitions.json
+    - scripts/deploy.sh
